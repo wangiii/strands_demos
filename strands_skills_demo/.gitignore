@@ -10,3 +10,4 @@ workdir
 .venv
 .env
 node_modules
+.claude/

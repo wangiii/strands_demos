@@ -1,8 +1,7 @@
 from strands import Agent
-from strands.models import BedrockModel
+from strands.models.openai import OpenAIModel  # 使用 OpenAI 兼容接口
 from strands.agent.conversation_manager import SummarizingConversationManager,SlidingWindowConversationManager
 from strands_tools import file_read, shell, editor,file_write,tavily
-import boto3
 import json
 import os
 import asyncio
@@ -12,7 +11,6 @@ from ask_user_tool import ask_user
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
-session = boto3.Session(region_name = os.environ.get('region_name','us-west-2'))
 os.environ['BYPASS_TOOL_CONSENT'] = "true"
 
 ROOT = Path(__file__).parent
@@ -27,29 +25,39 @@ except Exception as e:
     print(f"Error creating work directory: {e}")
     raise
 
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:8000/v1")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "dummy-key")
+LLM_MODEL_ID = os.environ.get("LLM_MODEL_ID", "gpt-5")
+LLM_SUMMARY_MODEL_ID = os.environ.get("LLM_SUMMARY_MODEL_ID", "gpt-5")
+
+print(f"🔗 模型网关: {LLM_BASE_URL}")
+print(f"🤖 主模型: {LLM_MODEL_ID}")
+print(f"📝 摘要模型: {LLM_SUMMARY_MODEL_ID}")
+
 # Agent Configuration
-agent_model = BedrockModel(
-    model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    temperature=1,
-    max_tokens=24000,
-    cache_prompt="default",
-    cache_tools="default",
-    boto_session=session,
-    additional_request_fields={
-        "thinking": {
-            "type": "enabled",
-            "budget_tokens": 1024
-        },
-        "anthropic_beta":["interleaved-thinking-2025-05-14","fine-grained-tool-streaming-2025-05-14"]
+agent_model = OpenAIModel(
+    model_id=LLM_MODEL_ID,
+    client_args={
+        "base_url": LLM_BASE_URL,
+        "api_key": LLM_API_KEY,
+    },
+    params={
+        "temperature": 1,
+        "max_tokens": 24000,
     }
 )
 
 # Create a cheaper, faster model for summarization tasks
-summarization_model = BedrockModel(
-    model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",  # More cost-effective for summarization
-    max_tokens=10000,
-    boto_session=session,
-    temperature=0.1,  # Low temperature for consistent summaries
+summarization_model = OpenAIModel(
+    model_id=LLM_SUMMARY_MODEL_ID,
+    client_args={
+        "base_url": LLM_BASE_URL,
+        "api_key": LLM_API_KEY,
+    },
+    params={
+        "max_tokens": 10000,
+        "temperature": 0.1,  # Low temperature for consistent summaries
+    }
 )
 
 conversation_manager = SummarizingConversationManager(
@@ -74,7 +82,8 @@ Don't create files outside the working directory.
 """,
         tools=[file_read, shell, editor,file_write, skill_tool,ask_user,tavily],
         conversation_manager=conversation_manager,
-        hooks=[SkillToolInterceptor()]
+        hooks=[SkillToolInterceptor()],
+        callback_handler=None  # 禁用默认的 PrintingCallbackHandler，避免重复打印
         )
 
 

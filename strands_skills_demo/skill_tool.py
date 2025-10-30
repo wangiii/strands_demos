@@ -205,7 +205,14 @@ class SkillToolInterceptor(HookProvider):
             
     def add_message_cache(self, event:BeforeModelCallEvent) -> None:
         # logger.info("💾 处理模型调用前缓存事件...")
-        # print("==========BeforeModelCallEvent=========\n")
+        # 只有 Bedrock 和 Anthropic 模型支持 cachePoint
+        # OpenAI 模型不支持，所以跳过
+        from strands.models.bedrock import BedrockModel
+        
+        # 检查模型类型，只对 BedrockModel 添加缓存点
+        if not isinstance(event.agent.model, BedrockModel):
+            return
+        
         for message in event.agent.messages:
             content = message['content']
             if any(['cachePoint' in block for block in content]):
