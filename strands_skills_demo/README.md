@@ -40,18 +40,6 @@ TAVILY_API_KEY=your-tavily-api-key
 
 **详细配置指南：** 参考 [GATEWAY_CONFIG.md](GATEWAY_CONFIG.md)
 
-### 3. 测试配置
-
-运行测试脚本验证网关配置：
-
-```bash
-uv run python test_gateway.py
-```
-
-如果测试通过，会看到：
-```
-🎉 所有测试通过！配置正确，可以运行 main.py
-```
 
 ## 使用示例
 
